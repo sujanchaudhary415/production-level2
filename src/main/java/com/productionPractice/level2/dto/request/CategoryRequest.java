@@ -15,4 +15,7 @@ public class CategoryRequest {
             regexp = "^[A-Za-z ]+$"
     )
     private String categoryName;
+
+    @NotBlank(message="Description must not be blank")
+    private String description;
 }

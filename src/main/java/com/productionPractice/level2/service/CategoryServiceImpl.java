@@ -4,6 +4,7 @@ import com.productionPractice.level2.dto.request.CategoryRequest;
 import com.productionPractice.level2.dto.response.CategoryResponse;
 import com.productionPractice.level2.entity.Category;
 import com.productionPractice.level2.exception.DuplicateErrorException;
+import com.productionPractice.level2.exception.ResourceNotFoundException;
 import com.productionPractice.level2.mapper.CategoryMapper;
 import com.productionPractice.level2.repository.CategoryRepository;
 import com.productionPractice.level2.util.PaginationUtil;
@@ -16,6 +17,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class CategoryServiceImpl implements CategoryService{
@@ -50,7 +52,7 @@ public class CategoryServiceImpl implements CategoryService{
     }
 
     @Override
-    public PagedResponse<CategoryResponse>getAllCategories(int pageNumber, int pageSize, String sortBy, String sortDir) {
+    public PagedResponse<CategoryResponse>getAllCategories(Integer pageNumber,Integer pageSize, String sortBy, String sortDir) {
         Sort sort=sortDir.equalsIgnoreCase("asc")
                 ?Sort.by(sortBy).ascending()
                 :Sort.by(sortBy).descending();
@@ -61,5 +63,37 @@ public class CategoryServiceImpl implements CategoryService{
 
 
         return PaginationUtil.build(categoryPage,content);
+    }
+
+    @Override
+    public CategoryResponse getCategoryById(Long categoryId) {
+        Category category=categoryRepository.findById(categoryId).orElseThrow(()->new ResourceNotFoundException("Category","categoryId",categoryId));
+        return categoryMapper.toResponse(category);
+    }
+
+    @Transactional
+    @Override
+    public CategoryResponse updateCategoryById(Long categoryId, CategoryRequest request) {
+
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Category", "categoryId", categoryId));
+
+        String name = request.getCategoryName();
+
+        if (name != null) {
+            String trimmedName = name.trim();
+
+            if (!trimmedName.equalsIgnoreCase(category.getCategoryName()) &&
+                    categoryRepository.existsByCategoryNameIgnoreCase(trimmedName)) {
+
+                throw new DuplicateErrorException("Category name already exists");
+            }
+
+            request.setCategoryName(trimmedName);
+        }
+
+        categoryMapper.updateCategoryFromDto(request, category);
+
+        return categoryMapper.toResponse(category);
     }
 }

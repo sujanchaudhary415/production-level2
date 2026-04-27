@@ -8,7 +8,7 @@ import com.productionPractice.level2.wrapper.PagedResponse;
 
 public interface CategoryService {
     CategoryResponse createCategory(CategoryRequest request);
-   PagedResponse<CategoryResponse> getAllCategories(int pageNumber, int pageSize, String sortBy, String sortDir);
-
-
+    PagedResponse<CategoryResponse> getAllCategories(Integer pageNumber, Integer pageSize, String sortBy, String sortDir);
+    CategoryResponse getCategoryById(Long categoryId);
+    CategoryResponse updateCategoryById(Long categoryId,CategoryRequest request);
 }
