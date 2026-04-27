@@ -95,4 +95,14 @@ public class CategoryServiceImpl implements CategoryService{
 
         return categoryMapper.toResponse(category);
     }
+
+    @Transactional
+    @Override
+    public void deleteCategoryById(Long categoryId) {
+
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Category", "categoryId", categoryId));
+
+        categoryRepository.delete(category);
+    }
 }

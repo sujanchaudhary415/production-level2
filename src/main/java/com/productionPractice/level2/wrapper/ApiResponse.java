@@ -1,11 +1,13 @@
 package com.productionPractice.level2.wrapper;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.*;
 
 @Getter
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ApiResponse <T>{
     private boolean success;
     private String message;

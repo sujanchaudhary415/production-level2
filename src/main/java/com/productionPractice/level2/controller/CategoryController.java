@@ -54,4 +54,11 @@ public class CategoryController {
         CategoryResponse response=categoryService.updateCategoryById(categoryId,request);
         return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(response,"Category Updated successfully"));
     }
+
+    @DeleteMapping("/{categoryId}")
+    public ResponseEntity<ApiResponse<Void>> deleteCategoryById (@PathVariable @Positive Long categoryId)
+    {
+        categoryService.deleteCategoryById(categoryId);
+        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success("Category deleted successfully"));
+    }
 }
