@@ -3,6 +3,8 @@ package com.productionPractice.level2.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.List;
+
 
 @Entity
 @Table(name = "categories")
@@ -22,4 +24,6 @@ public class Category extends BaseEntity {
     @Column(nullable = false)
     private String description;
 
+    @OneToMany(mappedBy = "category",cascade = CascadeType.ALL,orphanRemoval = true)
+    private List<Product> products;
 }
