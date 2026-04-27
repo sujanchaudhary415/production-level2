@@ -7,4 +7,5 @@ import com.productionPractice.level2.wrapper.PagedResponse;
 public interface ProductService {
     ProductResponse addProduct(Long categoryId, ProductRequest request);
     PagedResponse<ProductResponse> getAllProducts(Integer pageNumber,Integer pageSize,String sortBy,String sortDir);
+    ProductResponse getProductById(Long productId);
 }

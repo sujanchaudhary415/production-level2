@@ -70,4 +70,11 @@ public class ProductServiceImpl implements ProductService {
 
         return PaginationUtil.build(productPage,content);
     }
+
+    @Transactional
+    @Override
+    public ProductResponse getProductById(Long productId) {
+        Product product=productRepository.findById(productId).orElseThrow(()->new ResourceNotFoundException("Product","productId",productId));
+        return productMapper.toResponse(product);
+    }
 }

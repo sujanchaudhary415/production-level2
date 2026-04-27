@@ -37,4 +37,12 @@ public class ProductController {
         PagedResponse<ProductResponse>response=productService.getAllProducts(pageNumber,pageSize,sortBy,sortDir);
         return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(response,"All product fetched successfully"));
     }
+
+    @GetMapping("/public/products/{productId}")
+    public ResponseEntity<ApiResponse<ProductResponse>> getProductById(@PathVariable Long productId)
+    {
+        ProductResponse response=productService.getProductById(productId);
+        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(response,"Product with id: "+productId+ " fetched successfully"));
+    }
+
 }
