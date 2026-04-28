@@ -45,4 +45,14 @@ public class ProductController {
         return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(response,"Product with id: "+productId+ " fetched successfully"));
     }
 
+    @GetMapping("/public/categories/{categoryId}/products")
+    public ResponseEntity<ApiResponse<PagedResponse<ProductResponse>>> getProductsByCategory(@PathVariable Long categoryId,@RequestParam(name="pageNumber",defaultValue = AppConstant.PAGE_NUMBER, required = false)Integer pageNumber,
+                                                                                             @RequestParam(name="pageSize",defaultValue=AppConstant.PAGE_SIZE,required = false)Integer pageSize,
+                                                                                             @RequestParam(name="sortBy",defaultValue = AppConstant.SORT_BY_PRODUCT,required = false)String sortBy,
+                                                                                             @RequestParam(name = "sortDir",defaultValue = AppConstant.SORT_DIR,required=false) String sortDir)
+    {
+        PagedResponse<ProductResponse> response=productService.getProductsByCategory(categoryId,pageNumber,pageSize,sortBy,sortDir);
+        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(response,"Products fetched by category"));
+
+    }
 }

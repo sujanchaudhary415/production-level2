@@ -26,6 +26,4 @@ public class ProductRequest {
     @Min(0)
     private Integer quantity;
 
-    @NotNull(message =  "CategoryId is required to create product")
-    private Long categoryId;
 }

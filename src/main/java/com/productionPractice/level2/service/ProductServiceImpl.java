@@ -77,4 +77,17 @@ public class ProductServiceImpl implements ProductService {
         Product product=productRepository.findById(productId).orElseThrow(()->new ResourceNotFoundException("Product","productId",productId));
         return productMapper.toResponse(product);
     }
+
+    @Override
+    public PagedResponse<ProductResponse> getProductsByCategory(Long categoryId,Integer pageNumber, Integer pageSize, String sortBy, String sortDir) {
+        Sort sort=sortDir.equalsIgnoreCase("asc")
+                          ? Sort.by(sortBy).ascending()
+                          : Sort.by(sortBy).descending();
+        Pageable pageable=PageRequest.of(pageNumber,pageSize,sort);
+        Category category=categoryRepository.findById(categoryId).orElseThrow(()->new ResourceNotFoundException("Category","categoryId",categoryId));
+        Page<Product>productPage=productRepository.findByCategory_CategoryId(category.getCategoryId(),pageable);
+        List<ProductResponse>content=productPage.getContent().stream().map(productMapper::toResponse).toList();
+
+        return PaginationUtil.build(productPage,content);
+    }
 }
