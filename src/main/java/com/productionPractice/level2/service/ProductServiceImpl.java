@@ -142,4 +142,11 @@ public class ProductServiceImpl implements ProductService {
 
         return PaginationUtil.build(productPage, content);
     }
+
+    @Transactional
+    @Override
+    public void deleteProductById(Long productId) {
+        Product product=productRepository.findById(productId).orElseThrow(()->new ResourceNotFoundException("Product","productId",productId));
+        productRepository.delete(product);
+    }
 }

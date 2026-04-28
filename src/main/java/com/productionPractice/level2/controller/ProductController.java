@@ -73,4 +73,11 @@ public class ProductController {
         PagedResponse<ProductResponse>response=productService.getProductsByKeyword(keyword,pageNumber,pageSize,sortBy);
         return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(response,keyword+ " fetched successfully"));
     }
+
+    @DeleteMapping("/{productId}")
+    public ResponseEntity<ApiResponse<Void>> deleteProductById(@PathVariable Long productId)
+    {
+        productService.deleteProductById(productId);
+        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success("Product Id: "+productId+" deleted successfully"));
+    }
 }

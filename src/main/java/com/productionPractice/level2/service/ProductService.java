@@ -12,4 +12,5 @@ public interface ProductService {
     ProductResponse getProductById(Long productId);
     ProductResponse updateProductById(Long productId, ProductUpdateRequest request);
     PagedResponse<ProductResponse> getProductsByKeyword(String keyword,Integer pageNumber,Integer pageSize,String sortBy);
+    void deleteProductById(Long productId);
 }
