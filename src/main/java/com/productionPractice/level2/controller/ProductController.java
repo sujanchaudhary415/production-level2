@@ -55,4 +55,11 @@ public class ProductController {
         return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(response,"Products fetched by category"));
 
     }
+
+    @PutMapping("/products/{productId}")
+    public ResponseEntity<ApiResponse<ProductResponse>> updateProductById(@PathVariable Long productId,@RequestBody ProductRequest request)
+    {
+        ProductResponse response=productService.updateProductById(productId,request);
+        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(response,"ProductID: "+request.getProductName()+" updated"));
+    }
 }

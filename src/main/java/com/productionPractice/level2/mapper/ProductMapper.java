@@ -3,8 +3,7 @@ package com.productionPractice.level2.mapper;
 import com.productionPractice.level2.dto.request.ProductRequest;
 import com.productionPractice.level2.dto.response.ProductResponse;
 import com.productionPractice.level2.entity.Product;
-import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
+import org.mapstruct.*;
 
 @Mapper(componentModel = "spring")
 public interface ProductMapper {
@@ -13,4 +12,8 @@ public interface ProductMapper {
     @Mapping(source = "category.categoryId", target = "categoryId")
     @Mapping(source = "category.categoryName", target = "categoryName")
     ProductResponse toResponse(Product product);
+
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    @Mapping(target = "productId", ignore = true)
+    void updateProductFromDto(ProductRequest dto, @MappingTarget Product entity);
 }

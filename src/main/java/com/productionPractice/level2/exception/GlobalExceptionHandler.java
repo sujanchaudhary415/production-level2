@@ -43,7 +43,7 @@ public class GlobalExceptionHandler {
         ErrorResponse error=ErrorResponse.builder()
                 .timestamp(Instant.now())
                 .status(HttpStatus.NOT_FOUND.value())
-                .error("Not Found")
+                .error("NOT FOUND")
                 .message(ex.getMessage())
                 .path(request.getRequestURI())
                 .build();
@@ -58,7 +58,7 @@ public class GlobalExceptionHandler {
         ErrorResponse error=ErrorResponse.builder()
                 .timestamp(Instant.now())
                 .status(HttpStatus.CONFLICT.value())
-                .error("Conflict")
+                .error("CONFLICT")
                 .message(ex.getMessage())
                 .path(request.getRequestURI())
                 .build();
@@ -80,5 +80,19 @@ public class GlobalExceptionHandler {
                 .build();
 
         return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @ExceptionHandler(BusinessRuleException.class)
+    public ResponseEntity<ErrorResponse> handleBusinessRuleException(BusinessRuleException ex,HttpServletRequest request)
+    {
+        ErrorResponse error=ErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error("CONFLICT")
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .build();
+
+        return new ResponseEntity<>(error,HttpStatus.CONFLICT);
     }
 }

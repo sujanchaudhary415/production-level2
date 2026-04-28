@@ -3,6 +3,7 @@ package com.productionPractice.level2.service;
 import com.productionPractice.level2.dto.request.CategoryRequest;
 import com.productionPractice.level2.dto.response.CategoryResponse;
 import com.productionPractice.level2.entity.Category;
+import com.productionPractice.level2.exception.BusinessRuleException;
 import com.productionPractice.level2.exception.DuplicateErrorException;
 import com.productionPractice.level2.exception.ResourceNotFoundException;
 import com.productionPractice.level2.mapper.CategoryMapper;
@@ -77,20 +78,15 @@ public class CategoryServiceImpl implements CategoryService{
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category", "categoryId", categoryId));
 
-        String name = request.getCategoryName();
+        if(request.getCategoryName()!=null){
+            String trimmedName= request.getCategoryName().trim();
 
-        if (name != null) {
-            String trimmedName = name.trim();
-
-            if (!trimmedName.equalsIgnoreCase(category.getCategoryName()) &&
-                    categoryRepository.existsByCategoryNameIgnoreCase(trimmedName)) {
-
-                throw new DuplicateErrorException("Category name already exists");
+            boolean exists=categoryRepository.existsByCategoryNameIgnoreCaseAndCategoryIdNot(trimmedName,categoryId);
+            if(exists)
+            {
+                throw new DuplicateErrorException("Category already exist");
             }
-
-            request.setCategoryName(trimmedName);
         }
-
         categoryMapper.updateCategoryFromDto(request, category);
 
         return categoryMapper.toResponse(category);
@@ -102,6 +98,10 @@ public class CategoryServiceImpl implements CategoryService{
 
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category", "categoryId", categoryId));
+
+        if (!category.getProducts().isEmpty()) {
+            throw new BusinessRuleException("Cannot delete category with products");
+        }
 
         categoryRepository.delete(category);
     }

@@ -90,4 +90,32 @@ public class ProductServiceImpl implements ProductService {
 
         return PaginationUtil.build(productPage,content);
     }
+
+    @Transactional
+    @Override
+    public ProductResponse updateProductById(Long productId, ProductRequest request) {
+
+        // 1. Fetch existing product
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Product", "productId", productId));
+
+        // 2. Validate product name (if provided)
+        if (request.getProductName() != null) {
+
+            String trimmedName = request.getProductName().trim();
+
+            boolean exists = productRepository.existsByProductNameIgnoreCaseAndProductIdNot(trimmedName, productId);
+
+            if (exists) {
+                throw new DuplicateErrorException("Product name already exists");
+            }
+        }
+
+        // 3. Map all fields (partial update supported)
+        productMapper.updateProductFromDto(request, product);
+
+        // 5. Return response
+        return productMapper.toResponse(product);
+    }
 }
