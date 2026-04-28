@@ -2,6 +2,7 @@ package com.productionPractice.level2.controller;
 
 import com.productionPractice.level2.constant.AppConstant;
 import com.productionPractice.level2.dto.request.ProductRequest;
+import com.productionPractice.level2.dto.request.ProductUpdateRequest;
 import com.productionPractice.level2.dto.response.ProductResponse;
 import com.productionPractice.level2.service.ProductService;
 import com.productionPractice.level2.wrapper.ApiResponse;
@@ -57,9 +58,19 @@ public class ProductController {
     }
 
     @PutMapping("/products/{productId}")
-    public ResponseEntity<ApiResponse<ProductResponse>> updateProductById(@PathVariable Long productId,@RequestBody ProductRequest request)
+    public ResponseEntity<ApiResponse<ProductResponse>> updateProductById(@PathVariable Long productId,@RequestBody ProductUpdateRequest request)
     {
         ProductResponse response=productService.updateProductById(productId,request);
         return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(response,"ProductID: "+request.getProductName()+" updated"));
+    }
+
+    @GetMapping("/public/products/keyword")
+    public ResponseEntity<ApiResponse<PagedResponse<ProductResponse>>> getProductsByKeyword(@RequestParam String keyword,
+                                                                                            @RequestParam(defaultValue = "0") Integer pageNumber,
+                                                                                            @RequestParam(defaultValue = "10") Integer pageSize,
+                                                                                            @RequestParam(defaultValue = "NAME_ASC") String sortBy)
+    {
+        PagedResponse<ProductResponse>response=productService.getProductsByKeyword(keyword,pageNumber,pageSize,sortBy);
+        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(response,keyword+ " fetched successfully"));
     }
 }

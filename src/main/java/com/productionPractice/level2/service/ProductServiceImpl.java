@@ -1,14 +1,18 @@
 package com.productionPractice.level2.service;
 
 import com.productionPractice.level2.dto.request.ProductRequest;
+import com.productionPractice.level2.dto.request.ProductUpdateRequest;
 import com.productionPractice.level2.dto.response.ProductResponse;
 import com.productionPractice.level2.entity.Category;
 import com.productionPractice.level2.entity.Product;
+import com.productionPractice.level2.enums.ProductSortType;
+import com.productionPractice.level2.exception.BusinessRuleException;
 import com.productionPractice.level2.exception.DuplicateErrorException;
 import com.productionPractice.level2.exception.ResourceNotFoundException;
 import com.productionPractice.level2.mapper.ProductMapper;
 import com.productionPractice.level2.repository.CategoryRepository;
 import com.productionPractice.level2.repository.ProductRepository;
+import com.productionPractice.level2.util.PageableUtil;
 import com.productionPractice.level2.util.PaginationUtil;
 import com.productionPractice.level2.wrapper.PagedResponse;
 import jakarta.transaction.Transactional;
@@ -60,18 +64,14 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public PagedResponse<ProductResponse> getAllProducts(Integer pageNumber, Integer pageSize, String sortBy, String sortDir) {
-        Sort sort= sortDir.equalsIgnoreCase("asc")
-                           ?Sort.by(sortBy).ascending()
-                           :Sort.by(sortBy).descending();
-        Pageable pageable= PageRequest.of(pageNumber,pageSize,sort);
+
+        Pageable pageable= PageableUtil.create(pageNumber,pageSize,sortBy,sortDir);
         Page<Product>productPage=productRepository.findAll(pageable);
-
         List<ProductResponse> content=productPage.getContent().stream().map(productMapper::toResponse).toList();
-
         return PaginationUtil.build(productPage,content);
     }
 
-    @Transactional
+
     @Override
     public ProductResponse getProductById(Long productId) {
         Product product=productRepository.findById(productId).orElseThrow(()->new ResourceNotFoundException("Product","productId",productId));
@@ -80,10 +80,8 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public PagedResponse<ProductResponse> getProductsByCategory(Long categoryId,Integer pageNumber, Integer pageSize, String sortBy, String sortDir) {
-        Sort sort=sortDir.equalsIgnoreCase("asc")
-                          ? Sort.by(sortBy).ascending()
-                          : Sort.by(sortBy).descending();
-        Pageable pageable=PageRequest.of(pageNumber,pageSize,sort);
+
+        Pageable pageable=PageableUtil.create(pageNumber,pageSize,sortBy,sortDir);
         Category category=categoryRepository.findById(categoryId).orElseThrow(()->new ResourceNotFoundException("Category","categoryId",categoryId));
         Page<Product>productPage=productRepository.findByCategory_CategoryId(category.getCategoryId(),pageable);
         List<ProductResponse>content=productPage.getContent().stream().map(productMapper::toResponse).toList();
@@ -93,7 +91,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Transactional
     @Override
-    public ProductResponse updateProductById(Long productId, ProductRequest request) {
+    public ProductResponse updateProductById(Long productId, ProductUpdateRequest request) {
 
         // 1. Fetch existing product
         Product product = productRepository.findById(productId)
@@ -101,7 +99,7 @@ public class ProductServiceImpl implements ProductService {
                         new ResourceNotFoundException("Product", "productId", productId));
 
         // 2. Validate product name (if provided)
-        if (request.getProductName() != null) {
+        if (request.getProductName() != null && !request.getProductName().isBlank()){
 
             String trimmedName = request.getProductName().trim();
 
@@ -117,5 +115,31 @@ public class ProductServiceImpl implements ProductService {
 
         // 5. Return response
         return productMapper.toResponse(product);
+    }
+
+    @Override
+    public PagedResponse<ProductResponse> getProductsByKeyword(String keyword, Integer pageNumber, Integer pageSize, String sortBy) {
+
+        if (keyword == null || keyword.trim().isEmpty()) {
+            throw new BusinessRuleException("Keyword must not be empty");
+        }
+
+        String cleanedKeyword = keyword.trim();
+
+        // safe enum-based sorting
+        ProductSortType sortType = ProductSortType.from(sortBy);
+        Sort sort = sortType.toSort();
+
+        Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
+
+        Page<Product> productPage =
+                productRepository.findByProductNameContainingIgnoreCase(cleanedKeyword, pageable);
+
+        List<ProductResponse> content = productPage.getContent()
+                .stream()
+                .map(productMapper::toResponse)
+                .toList();
+
+        return PaginationUtil.build(productPage, content);
     }
 }

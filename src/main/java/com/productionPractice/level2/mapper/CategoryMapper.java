@@ -1,6 +1,7 @@
 package com.productionPractice.level2.mapper;
 
 import com.productionPractice.level2.dto.request.CategoryRequest;
+import com.productionPractice.level2.dto.request.CategoryUpdateRequest;
 import com.productionPractice.level2.dto.response.CategoryResponse;
 import com.productionPractice.level2.entity.Category;
 import org.mapstruct.*;
@@ -14,6 +15,6 @@ public interface CategoryMapper {
     // 🔥 Partial update method
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "categoryId", ignore = true)
-    void updateCategoryFromDto(CategoryRequest dto, @MappingTarget Category entity);
+    void updateCategoryFromDto(CategoryUpdateRequest dto, @MappingTarget Category entity);
 
 }

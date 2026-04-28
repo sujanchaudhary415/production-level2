@@ -2,6 +2,7 @@ package com.productionPractice.level2.controller;
 
 import com.productionPractice.level2.constant.AppConstant;
 import com.productionPractice.level2.dto.request.CategoryRequest;
+import com.productionPractice.level2.dto.request.CategoryUpdateRequest;
 import com.productionPractice.level2.dto.response.CategoryResponse;
 import com.productionPractice.level2.service.CategoryService;
 import com.productionPractice.level2.wrapper.ApiResponse;
@@ -10,8 +11,10 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Positive;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+@Validated
 @RestController
 @RequestMapping("/api/category")
 
@@ -49,7 +52,7 @@ public class CategoryController {
     }
 
     @PutMapping("/{categoryId}")
-    public ResponseEntity<ApiResponse<CategoryResponse>> updateCategoryById(@PathVariable @Positive Long categoryId,@RequestBody CategoryRequest request)
+    public ResponseEntity<ApiResponse<CategoryResponse>> updateCategoryById(@PathVariable @Positive Long categoryId, @Valid @RequestBody CategoryUpdateRequest request)
     {
         CategoryResponse response=categoryService.updateCategoryById(categoryId,request);
         return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(response,"Category Updated successfully"));

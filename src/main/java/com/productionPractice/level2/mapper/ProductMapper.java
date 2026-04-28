@@ -1,6 +1,7 @@
 package com.productionPractice.level2.mapper;
 
 import com.productionPractice.level2.dto.request.ProductRequest;
+import com.productionPractice.level2.dto.request.ProductUpdateRequest;
 import com.productionPractice.level2.dto.response.ProductResponse;
 import com.productionPractice.level2.entity.Product;
 import org.mapstruct.*;
@@ -15,5 +16,5 @@ public interface ProductMapper {
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "productId", ignore = true)
-    void updateProductFromDto(ProductRequest dto, @MappingTarget Product entity);
+    void updateProductFromDto(ProductUpdateRequest dto, @MappingTarget Product entity);
 }

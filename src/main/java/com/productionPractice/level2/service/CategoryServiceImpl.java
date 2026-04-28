@@ -1,6 +1,7 @@
 package com.productionPractice.level2.service;
 
 import com.productionPractice.level2.dto.request.CategoryRequest;
+import com.productionPractice.level2.dto.request.CategoryUpdateRequest;
 import com.productionPractice.level2.dto.response.CategoryResponse;
 import com.productionPractice.level2.entity.Category;
 import com.productionPractice.level2.exception.BusinessRuleException;
@@ -8,13 +9,12 @@ import com.productionPractice.level2.exception.DuplicateErrorException;
 import com.productionPractice.level2.exception.ResourceNotFoundException;
 import com.productionPractice.level2.mapper.CategoryMapper;
 import com.productionPractice.level2.repository.CategoryRepository;
+import com.productionPractice.level2.util.PageableUtil;
 import com.productionPractice.level2.util.PaginationUtil;
 import com.productionPractice.level2.wrapper.PagedResponse;
 import jakarta.transaction.Transactional;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -53,14 +53,10 @@ public class CategoryServiceImpl implements CategoryService{
 
     @Override
     public PagedResponse<CategoryResponse>getAllCategories(Integer pageNumber,Integer pageSize, String sortBy, String sortDir) {
-        Sort sort=sortDir.equalsIgnoreCase("asc")
-                ?Sort.by(sortBy).ascending()
-                :Sort.by(sortBy).descending();
-        Pageable pageable= PageRequest.of(pageNumber,pageSize,sort);
+
+        Pageable pageable= PageableUtil.create(pageNumber,pageSize,sortBy,sortDir);
         Page<Category>categoryPage=categoryRepository.findAll(pageable);
-
         List<CategoryResponse>content= categoryPage.getContent().stream().map(categoryMapper::toResponse).toList();
-
 
         return PaginationUtil.build(categoryPage,content);
     }
@@ -73,12 +69,12 @@ public class CategoryServiceImpl implements CategoryService{
 
     @Transactional
     @Override
-    public CategoryResponse updateCategoryById(Long categoryId, CategoryRequest request) {
+    public CategoryResponse updateCategoryById(Long categoryId, CategoryUpdateRequest request) {
 
         Category category = categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Category", "categoryId", categoryId));
 
-        if(request.getCategoryName()!=null){
+        if (request.getCategoryName()!= null && !request.getCategoryName().isBlank()){
             String trimmedName= request.getCategoryName().trim();
 
             boolean exists=categoryRepository.existsByCategoryNameIgnoreCaseAndCategoryIdNot(trimmedName,categoryId);
