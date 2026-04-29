@@ -13,6 +13,7 @@ import com.productionPractice.level2.util.PageableUtil;
 import com.productionPractice.level2.util.PaginationUtil;
 import com.productionPractice.level2.wrapper.PagedResponse;
 import jakarta.transaction.Transactional;
+import org.springframework.cache.annotation.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -20,80 +21,122 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
-public class CategoryServiceImpl implements CategoryService{
+@CacheConfig(cacheNames = {"categories", "categoriesPage"})
+public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final CategoryMapper categoryMapper;
 
-    public CategoryServiceImpl(CategoryRepository categoryRepository, CategoryMapper categoryMapper)
-    {
-        this.categoryRepository=categoryRepository;
-        this.categoryMapper=categoryMapper;
+    public CategoryServiceImpl(CategoryRepository categoryRepository, CategoryMapper categoryMapper) {
+        this.categoryRepository = categoryRepository;
+        this.categoryMapper = categoryMapper;
     }
 
+    // CREATE
     @Transactional
     @Override
     public CategoryResponse createCategory(CategoryRequest request) {
 
-        String name=request.getCategoryName().trim();
+        String name = request.getCategoryName().trim();
 
-        if(categoryRepository.existsByCategoryNameIgnoreCase(name))
-        {
-            throw new DuplicateErrorException("category with name: "+name+" already exist");
+        if (categoryRepository.existsByCategoryNameIgnoreCase(name)) {
+            throw new DuplicateErrorException("Category with name: " + name + " already exists");
         }
 
-        //convert DTO to Entity
-        Category category= categoryMapper.toEntity(request);
+        Category category = categoryMapper.toEntity(request);
         category.setCategoryName(name);
-        Category saved= categoryRepository.save(category);
 
-        //convert Entity to Response
+        Category saved = categoryRepository.save(category);
+
         return categoryMapper.toResponse(saved);
     }
 
+    // GET ALL (PAGE CACHE)
     @Override
-    public PagedResponse<CategoryResponse>getAllCategories(Integer pageNumber,Integer pageSize, String sortBy, String sortDir) {
+    @Cacheable(
+            cacheNames = "categoriesPage",
+            key = "#pageNumber + '_' + #pageSize + '_' + #sortBy + '_' + #sortDir"
+    )
+    public PagedResponse<CategoryResponse> getAllCategories(
+            Integer pageNumber,
+            Integer pageSize,
+            String sortBy,
+            String sortDir
+    ) {
 
-        Pageable pageable= PageableUtil.create(pageNumber,pageSize,sortBy,sortDir);
-        Page<Category>categoryPage=categoryRepository.findAll(pageable);
-        List<CategoryResponse>content= categoryPage.getContent().stream().map(categoryMapper::toResponse).toList();
+        Pageable pageable = PageableUtil.create(pageNumber, pageSize, sortBy, sortDir);
 
-        return PaginationUtil.build(categoryPage,content);
+        Page<Category> categoryPage = categoryRepository.findAll(pageable);
+
+        List<CategoryResponse> content = categoryPage.getContent()
+                .stream()
+                .map(categoryMapper::toResponse)
+                .toList();
+
+        return PaginationUtil.build(categoryPage, content);
     }
 
+    // GET BY ID (CACHE FIXED)
     @Override
+    @Cacheable(cacheNames = "categories", key = "#categoryId")
     public CategoryResponse getCategoryById(Long categoryId) {
-        Category category=categoryRepository.findById(categoryId).orElseThrow(()->new ResourceNotFoundException("Category","categoryId",categoryId));
+
+        Category category = categoryRepository.findById(categoryId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Category", "categoryId", categoryId
+                ));
+
         return categoryMapper.toResponse(category);
     }
 
+    // UPDATE (FIXED CACHE CONSISTENCY)
     @Transactional
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "categories", key = "#categoryId"),
+            @CacheEvict(cacheNames = "categoriesPage", allEntries = true)
+    })
     public CategoryResponse updateCategoryById(Long categoryId, CategoryUpdateRequest request) {
 
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new ResourceNotFoundException("Category", "categoryId", categoryId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Category", "categoryId", categoryId
+                ));
 
-        if (request.getCategoryName()!= null && !request.getCategoryName().isBlank()){
-            String trimmedName= request.getCategoryName().trim();
+        if (request.getCategoryName() != null && !request.getCategoryName().isBlank()) {
 
-            boolean exists=categoryRepository.existsByCategoryNameIgnoreCaseAndCategoryIdNot(trimmedName,categoryId);
-            if(exists)
-            {
-                throw new DuplicateErrorException("Category already exist");
+            String trimmedName = request.getCategoryName().trim();
+
+            boolean exists = categoryRepository
+                    .existsByCategoryNameIgnoreCaseAndCategoryIdNot(trimmedName, categoryId);
+
+            if (exists) {
+                throw new DuplicateErrorException("Category already exists");
             }
+
+            category.setCategoryName(trimmedName);
         }
+
         categoryMapper.updateCategoryFromDto(request, category);
 
-        return categoryMapper.toResponse(category);
+        Category updated = categoryRepository.save(category);
+
+        return categoryMapper.toResponse(updated);
     }
 
+    // DELETE (CACHE SAFE)
     @Transactional
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "categories", key = "#categoryId"),
+            @CacheEvict(cacheNames = "categoriesPage", allEntries = true)
+    })
     public void deleteCategoryById(Long categoryId) {
 
         Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new ResourceNotFoundException("Category", "categoryId", categoryId));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Category", "categoryId", categoryId
+                ));
 
         if (!category.getProducts().isEmpty()) {
             throw new BusinessRuleException("Cannot delete category with products");
