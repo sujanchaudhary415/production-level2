@@ -3,6 +3,7 @@ package com.productionPractice.level2.entity;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -10,12 +11,14 @@ import java.util.List;
 @Table(name = "categories")
 @Getter
 @Setter
-@ToString
 @AllArgsConstructor
 @NoArgsConstructor
+@ToString(exclude = "products")
+@EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
 public class Category extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @EqualsAndHashCode.Include
     private Long categoryId;
 
     @Column(nullable = false,unique = true, length = 100)
@@ -25,5 +28,5 @@ public class Category extends BaseEntity {
     private String description;
 
     @OneToMany(mappedBy = "category",cascade = CascadeType.ALL,orphanRemoval = true)
-    private List<Product> products;
+    private List<Product> products=new ArrayList<>();
 }

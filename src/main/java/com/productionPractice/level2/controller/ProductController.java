@@ -78,6 +78,6 @@ public class ProductController {
     public ResponseEntity<ApiResponse<Void>> deleteProductById(@PathVariable Long productId)
     {
         productService.deleteProductById(productId);
-        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success("Product Id: "+productId+" deleted successfully"));
+        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success("Product deleted successfully"));
     }
 }
