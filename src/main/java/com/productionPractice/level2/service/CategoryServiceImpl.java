@@ -5,18 +5,18 @@ import com.productionPractice.level2.dto.request.CategoryUpdateRequest;
 import com.productionPractice.level2.dto.response.CategoryResponse;
 import com.productionPractice.level2.entity.Category;
 import com.productionPractice.level2.exception.BusinessRuleException;
-import com.productionPractice.level2.exception.DuplicateErrorException;
-import com.productionPractice.level2.exception.ResourceNotFoundException;
 import com.productionPractice.level2.mapper.CategoryMapper;
 import com.productionPractice.level2.repository.CategoryRepository;
+import com.productionPractice.level2.service.helper.CategoryHelper;
 import com.productionPractice.level2.util.PageableUtil;
 import com.productionPractice.level2.util.PaginationUtil;
 import com.productionPractice.level2.wrapper.PagedResponse;
-import jakarta.transaction.Transactional;
+
 import org.springframework.cache.annotation.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -26,10 +26,12 @@ public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final CategoryMapper categoryMapper;
+    private final CategoryHelper categoryHelper;
 
-    public CategoryServiceImpl(CategoryRepository categoryRepository, CategoryMapper categoryMapper) {
+    public CategoryServiceImpl(CategoryRepository categoryRepository, CategoryMapper categoryMapper,CategoryHelper categoryHelper) {
         this.categoryRepository = categoryRepository;
         this.categoryMapper = categoryMapper;
+        this.categoryHelper=categoryHelper;
     }
 
     // CREATE
@@ -37,11 +39,8 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     public CategoryResponse createCategory(CategoryRequest request) {
 
-        String name = request.getCategoryName().trim();
-
-        if (categoryRepository.existsByCategoryNameIgnoreCase(name)) {
-            throw new DuplicateErrorException("Category with name: " + name + " already exists");
-        }
+        String name = categoryHelper.normalize(request.getCategoryName());
+        categoryHelper.validateDuplicateName(name,null);
 
         Category category = categoryMapper.toEntity(request);
         category.setCategoryName(name);
@@ -57,11 +56,7 @@ public class CategoryServiceImpl implements CategoryService {
             cacheNames = "categoriesPage",
             key = "#pageNumber + '_' + #pageSize + '_' + #sortBy + '_' + #sortDir"
     )
-    public PagedResponse<CategoryResponse> getAllCategories(
-            Integer pageNumber,
-            Integer pageSize,
-            String sortBy,
-            String sortDir
+    public PagedResponse<CategoryResponse> getAllCategories(Integer pageNumber, Integer pageSize, String sortBy, String sortDir
     ) {
 
         Pageable pageable = PageableUtil.create(pageNumber, pageSize, sortBy, sortDir);
@@ -81,12 +76,8 @@ public class CategoryServiceImpl implements CategoryService {
     @Cacheable(cacheNames = "categories", key = "#categoryId")
     public CategoryResponse getCategoryById(Long categoryId) {
 
-        Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Category", "categoryId", categoryId
-                ));
-
-        return categoryMapper.toResponse(category);
+       Category category= categoryHelper.getCategoryOrThrow(categoryId);
+       return categoryMapper.toResponse(category);
     }
 
     // UPDATE (FIXED CACHE CONSISTENCY)
@@ -98,30 +89,16 @@ public class CategoryServiceImpl implements CategoryService {
     })
     public CategoryResponse updateCategoryById(Long categoryId, CategoryUpdateRequest request) {
 
-        Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Category", "categoryId", categoryId
-                ));
+        Category category = categoryHelper.getCategoryOrThrow(categoryId);
 
-        if (request.getCategoryName() != null && !request.getCategoryName().isBlank()) {
+        if (!request.getCategoryName().isBlank()) {
 
-            String trimmedName = request.getCategoryName().trim();
-
-            boolean exists = categoryRepository
-                    .existsByCategoryNameIgnoreCaseAndCategoryIdNot(trimmedName, categoryId);
-
-            if (exists) {
-                throw new DuplicateErrorException("Category already exists");
-            }
-
-            category.setCategoryName(trimmedName);
+            String trimmedName=categoryHelper.normalize(request.getCategoryName());
+            categoryHelper.validateDuplicateName(trimmedName,categoryId);
         }
 
         categoryMapper.updateCategoryFromDto(request, category);
-
-        Category updated = categoryRepository.save(category);
-
-        return categoryMapper.toResponse(updated);
+        return categoryMapper.toResponse(category);
     }
 
     // DELETE (CACHE SAFE)
@@ -133,10 +110,7 @@ public class CategoryServiceImpl implements CategoryService {
     })
     public void deleteCategoryById(Long categoryId) {
 
-        Category category = categoryRepository.findById(categoryId)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Category", "categoryId", categoryId
-                ));
+       Category category=categoryHelper.getCategoryOrThrow(categoryId);
 
         if (!category.getProducts().isEmpty()) {
             throw new BusinessRuleException("Cannot delete category with products");
