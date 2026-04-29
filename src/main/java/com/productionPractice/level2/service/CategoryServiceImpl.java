@@ -91,7 +91,7 @@ public class CategoryServiceImpl implements CategoryService {
 
         Category category = categoryHelper.getCategoryOrThrow(categoryId);
 
-        if (!request.getCategoryName().isBlank()) {
+        if (categoryHelper.isNotBlank(request.getCategoryName())) {
 
             String trimmedName=categoryHelper.normalize(request.getCategoryName());
             categoryHelper.validateDuplicateName(trimmedName,categoryId);

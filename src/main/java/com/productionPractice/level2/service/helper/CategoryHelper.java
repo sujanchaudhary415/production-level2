@@ -37,4 +37,7 @@ public class CategoryHelper {
     {
         return categoryRepository.findById(categoryId).orElseThrow(()->new ResourceNotFoundException("Category","categoryId",categoryId));
     }
+    public boolean isNotBlank(String value) {
+        return value != null && !value.isBlank();
+    }
 }
