@@ -1,4 +1,4 @@
-package com.productionPractice.level2.service;
+package com.productionPractice.level2.service.Impl;
 
 import com.productionPractice.level2.dto.request.ProductRequest;
 import com.productionPractice.level2.dto.request.ProductUpdateRequest;
@@ -12,10 +12,18 @@ import com.productionPractice.level2.exception.ResourceNotFoundException;
 import com.productionPractice.level2.mapper.ProductMapper;
 import com.productionPractice.level2.repository.CategoryRepository;
 import com.productionPractice.level2.repository.ProductRepository;
+import com.productionPractice.level2.service.ProductService;
+import com.productionPractice.level2.service.helper.CommonHelper;
+import com.productionPractice.level2.service.helper.ProductHelper;
 import com.productionPractice.level2.util.PageableUtil;
 import com.productionPractice.level2.util.PaginationUtil;
 import com.productionPractice.level2.wrapper.PagedResponse;
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheConfig;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -25,44 +33,39 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
+@CacheConfig(cacheNames = {"products", "productsPage"})
 public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
     private final CategoryRepository categoryRepository;
     private final ProductMapper productMapper;
-
-    public ProductServiceImpl(ProductRepository productRepository, CategoryRepository categoryRepository, ProductMapper productMapper)
-    {
-        this.productRepository=productRepository;
-        this.categoryRepository=categoryRepository;
-        this.productMapper = productMapper;
-    }
+    private final ProductHelper productHelper;
+    private final CommonHelper commonHelper;
 
     @Transactional
     @Override
     public ProductResponse addProduct(Long categoryId, ProductRequest request) {
-        if(productRepository.existsByProductName(request.getProductName()))
-        {
-            throw new DuplicateErrorException("Product with name "+request.getProductName()+" already exist");
-        }
 
-        Category category=categoryRepository.findById(categoryId).orElseThrow(()->new ResourceNotFoundException("Category","CategoryId",categoryId));
+       String normalizedName= commonHelper.normalize(request.getProductName());
+       productHelper.validateDuplicateName(normalizedName,null);
+       Category category=productHelper.getCategoryOrThrow(categoryId);
 
-        //DTO to Entity
-        Product product=productMapper.toEntity(request);
-        //Establish relation
-        product.setCategory(category);
+       Product product=productMapper.toEntity(request);
+       product.setProductName(normalizedName);
+       product.setCategory(category);
 
-        // optional but recommended (bidirectional sync) // if you have List<Product> in Category
+       // optional but recommended (bidirectional sync) // if you have List<Product> in Category
         category.getProducts().add(product);
 
         Product savedProduct=productRepository.save(product);
-
-        //Entity to response
         return productMapper.toResponse(savedProduct);
     }
-
     @Override
+    @Cacheable(
+            cacheNames = "productsPage",
+            key = "#pageNumber + '_' + #pageSize + '_' + #sortBy + '_' + #sortDir"
+    )
     public PagedResponse<ProductResponse> getAllProducts(Integer pageNumber, Integer pageSize, String sortBy, String sortDir) {
 
         Pageable pageable= PageableUtil.create(pageNumber,pageSize,sortBy,sortDir);
@@ -73,8 +76,9 @@ public class ProductServiceImpl implements ProductService {
 
 
     @Override
+    @Cacheable(cacheNames = "products", key = "#productId")
     public ProductResponse getProductById(Long productId) {
-        Product product=productRepository.findById(productId).orElseThrow(()->new ResourceNotFoundException("Product","productId",productId));
+        Product product=productHelper.getProductOrThrow(productId);
         return productMapper.toResponse(product);
     }
 
@@ -91,50 +95,41 @@ public class ProductServiceImpl implements ProductService {
 
     @Transactional
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "products", key = "#productId"),
+            @CacheEvict(cacheNames = "productsPage", allEntries = true)
+    })
     public ProductResponse updateProductById(Long productId, ProductUpdateRequest request) {
 
-        // 1. Fetch existing product
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Product", "productId", productId));
+        Product product = productHelper.getProductOrThrow(productId);
 
-        // 2. Validate product name (if provided)
-        if (request.getProductName() != null && !request.getProductName().isBlank()){
+        String trimmedName = null;
+        if (commonHelper.isNotBlank(request.getProductName())) {
 
-            String trimmedName = request.getProductName().trim();
-
-            boolean exists = productRepository.existsByProductNameIgnoreCaseAndProductIdNot(trimmedName, productId);
-
-            if (exists) {
-                throw new DuplicateErrorException("Product name already exists");
-            }
+            trimmedName = commonHelper.normalize(request.getProductName());
+            productHelper.validateDuplicateName(trimmedName, productId);
         }
 
-        // 3. Map all fields (partial update supported)
         productMapper.updateProductFromDto(request, product);
+        product.setProductName(trimmedName);
 
-        // 5. Return response
         return productMapper.toResponse(product);
     }
 
     @Override
     public PagedResponse<ProductResponse> getProductsByKeyword(String keyword, Integer pageNumber, Integer pageSize, String sortBy) {
 
-        if (keyword == null || keyword.trim().isEmpty()) {
+        if (commonHelper.isNotBlank(keyword)) {
             throw new BusinessRuleException("Keyword must not be empty");
         }
 
-        String cleanedKeyword = keyword.trim();
+        String cleanedKeyword = commonHelper.normalize(keyword);
 
-        // safe enum-based sorting
         ProductSortType sortType = ProductSortType.from(sortBy);
         Sort sort = sortType.toSort();
 
         Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
-
-        Page<Product> productPage =
-                productRepository.findByProductNameContainingIgnoreCase(cleanedKeyword, pageable);
-
+        Page<Product> productPage = productRepository.findByProductNameContainingIgnoreCase(cleanedKeyword, pageable);
         List<ProductResponse> content = productPage.getContent()
                 .stream()
                 .map(productMapper::toResponse)
@@ -145,8 +140,12 @@ public class ProductServiceImpl implements ProductService {
 
     @Transactional
     @Override
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "products", key = "#productId"),
+            @CacheEvict(cacheNames = "productsPage", allEntries = true)
+    })
     public void deleteProductById(Long productId) {
-        Product product=productRepository.findById(productId).orElseThrow(()->new ResourceNotFoundException("Product","productId",productId));
+        Product product=productHelper.getProductOrThrow(productId);
         productRepository.delete(product);
     }
 }

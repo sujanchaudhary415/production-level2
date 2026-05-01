@@ -1,4 +1,4 @@
-package com.productionPractice.level2.service;
+package com.productionPractice.level2.service.Impl;
 
 import com.productionPractice.level2.dto.request.CategoryRequest;
 import com.productionPractice.level2.dto.request.CategoryUpdateRequest;
@@ -7,11 +7,14 @@ import com.productionPractice.level2.entity.Category;
 import com.productionPractice.level2.exception.BusinessRuleException;
 import com.productionPractice.level2.mapper.CategoryMapper;
 import com.productionPractice.level2.repository.CategoryRepository;
+import com.productionPractice.level2.service.CategoryService;
 import com.productionPractice.level2.service.helper.CategoryHelper;
+import com.productionPractice.level2.service.helper.CommonHelper;
 import com.productionPractice.level2.util.PageableUtil;
 import com.productionPractice.level2.util.PaginationUtil;
 import com.productionPractice.level2.wrapper.PagedResponse;
 
+import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.*;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,36 +24,30 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 @CacheConfig(cacheNames = {"categories", "categoriesPage"})
 public class CategoryServiceImpl implements CategoryService {
 
     private final CategoryRepository categoryRepository;
     private final CategoryMapper categoryMapper;
     private final CategoryHelper categoryHelper;
+    private final CommonHelper commonhelper;
 
-    public CategoryServiceImpl(CategoryRepository categoryRepository, CategoryMapper categoryMapper,CategoryHelper categoryHelper) {
-        this.categoryRepository = categoryRepository;
-        this.categoryMapper = categoryMapper;
-        this.categoryHelper=categoryHelper;
-    }
-
-    // CREATE
     @Transactional
     @Override
     public CategoryResponse createCategory(CategoryRequest request) {
-
-        String name = categoryHelper.normalize(request.getCategoryName());
-        categoryHelper.validateDuplicateName(name,null);
+        String normalizedName= commonhelper.normalize(request.getCategoryName());
+        categoryHelper.validateDuplicateName(normalizedName,null);
 
         Category category = categoryMapper.toEntity(request);
-        category.setCategoryName(name);
+        category.setCategoryName(normalizedName);
+
 
         Category saved = categoryRepository.save(category);
 
         return categoryMapper.toResponse(saved);
     }
 
-    // GET ALL (PAGE CACHE)
     @Override
     @Cacheable(
             cacheNames = "categoriesPage",
@@ -71,7 +68,7 @@ public class CategoryServiceImpl implements CategoryService {
         return PaginationUtil.build(categoryPage, content);
     }
 
-    // GET BY ID (CACHE FIXED)
+
     @Override
     @Cacheable(cacheNames = "categories", key = "#categoryId")
     public CategoryResponse getCategoryById(Long categoryId) {
@@ -80,7 +77,7 @@ public class CategoryServiceImpl implements CategoryService {
        return categoryMapper.toResponse(category);
     }
 
-    // UPDATE (FIXED CACHE CONSISTENCY)
+
     @Transactional
     @Override
     @Caching(evict = {
@@ -91,9 +88,8 @@ public class CategoryServiceImpl implements CategoryService {
 
         Category category = categoryHelper.getCategoryOrThrow(categoryId);
 
-        if (categoryHelper.isNotBlank(request.getCategoryName())) {
-
-            String trimmedName=categoryHelper.normalize(request.getCategoryName());
+        if (commonhelper.isNotBlank(request.getCategoryName())) {
+            String trimmedName=commonhelper.normalize(request.getCategoryName());
             categoryHelper.validateDuplicateName(trimmedName,categoryId);
         }
 
@@ -101,7 +97,7 @@ public class CategoryServiceImpl implements CategoryService {
         return categoryMapper.toResponse(category);
     }
 
-    // DELETE (CACHE SAFE)
+
     @Transactional
     @Override
     @Caching(evict = {

@@ -17,9 +17,7 @@ public class CategoryHelper {
         this.categoryRepository=categoryRepository;
     }
 
-    public  String normalize(String name){
-        return name.trim().replaceAll("\\s+"," ");
-    }
+
 
     public  void validateDuplicateName(String name,Long excludeId)
     {
@@ -37,7 +35,6 @@ public class CategoryHelper {
     {
         return categoryRepository.findById(categoryId).orElseThrow(()->new ResourceNotFoundException("Category","categoryId",categoryId));
     }
-    public boolean isNotBlank(String value) {
-        return value != null && !value.isBlank();
-    }
+
+
 }

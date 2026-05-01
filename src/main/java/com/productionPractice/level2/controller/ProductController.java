@@ -10,9 +10,11 @@ import com.productionPractice.level2.wrapper.PagedResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@Validated
 @RequestMapping("/api")
 public class ProductController {
     private final ProductService productService;
@@ -30,7 +32,7 @@ public class ProductController {
     }
 
     @GetMapping("/public/products")
-    public ResponseEntity<ApiResponse<PagedResponse<ProductResponse>>> getAllCategories(@RequestParam(name="pageNumber",defaultValue = AppConstant.PAGE_NUMBER, required = false)Integer pageNumber,
+    public ResponseEntity<ApiResponse<PagedResponse<ProductResponse>>> getAllProducts(@RequestParam(name="pageNumber",defaultValue = AppConstant.PAGE_NUMBER, required = false)Integer pageNumber,
                                                                                         @RequestParam(name="pageSize",defaultValue=AppConstant.PAGE_SIZE,required = false)Integer pageSize,
                                                                                         @RequestParam(name="sortBy",defaultValue = AppConstant.SORT_BY_PRODUCT,required = false)String sortBy,
                                                                                         @RequestParam(name = "sortDir",defaultValue = AppConstant.SORT_DIR,required=false) String sortDir)
@@ -58,7 +60,7 @@ public class ProductController {
     }
 
     @PutMapping("/products/{productId}")
-    public ResponseEntity<ApiResponse<ProductResponse>> updateProductById(@PathVariable Long productId,@RequestBody ProductUpdateRequest request)
+    public ResponseEntity<ApiResponse<ProductResponse>> updateProductById(@PathVariable Long productId,@RequestBody @Valid ProductUpdateRequest request)
     {
         ProductResponse response=productService.updateProductById(productId,request);
         return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(response,"ProductID: "+request.getProductName()+" updated"));

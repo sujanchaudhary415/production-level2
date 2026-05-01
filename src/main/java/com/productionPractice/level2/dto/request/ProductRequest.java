@@ -9,7 +9,12 @@ import java.math.BigDecimal;
 @Getter
 @Setter
 public class ProductRequest {
-    @NotBlank(message="Product name must not be blank")
+    @NotBlank(message = "Product name must not be blank")
+    @Size(min = 6, max = 50, message = "Product name must be 6–50 characters")
+    @Pattern(
+            regexp = "^[A-Za-z ]+$",
+            message = "Only letters and spaces allowed"
+    )
     private String productName;
 
     @NotBlank(message = "Image must not be blank")

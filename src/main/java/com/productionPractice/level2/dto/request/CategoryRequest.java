@@ -12,7 +12,8 @@ public class CategoryRequest {
     @NotBlank(message = "Category name must not be blank")
     @Size(min = 6, max = 50, message = "Category name must be 6–50 characters")
     @Pattern(
-            regexp = "^[A-Za-z ]+$"
+            regexp = "^[A-Za-z ]+$",
+            message = "Only letters and spaces allowed"
     )
     private String categoryName;
 
