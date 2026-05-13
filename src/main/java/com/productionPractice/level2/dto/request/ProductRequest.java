@@ -18,7 +18,7 @@ public class ProductRequest {
     private String productName;
 
     @NotBlank(message = "Image must not be blank")
-    private String image;
+    private String imageUrl;
 
     @NotBlank(message = "Description must not be blank")
     @Size(min = 10,max=35)

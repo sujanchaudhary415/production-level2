@@ -1,10 +1,8 @@
 package com.productionPractice.level2.entity;
 
 import jakarta.persistence.*;
-import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.ToString;
 
 import java.math.BigDecimal;
 
@@ -12,21 +10,19 @@ import java.math.BigDecimal;
 @Table(name = "products")
 @Getter
 @Setter
-@ToString(exclude = "category")
-@EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
+
 public class Product extends BaseEntity{
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @EqualsAndHashCode.Include
     private Long productId;
 
     @Column(nullable = false,length = 25,unique = true)
     private String productName;
 
     @Column(nullable = false)
-    private String image;
+    private String imageUrl;
 
-    @Column(nullable = false,length = 50)
+    @Column(nullable = false,length = 500)
     private String description;
 
     @Column(nullable = false,precision = 10,scale = 2)
@@ -38,4 +34,8 @@ public class Product extends BaseEntity{
     @ManyToOne(fetch=FetchType.LAZY,optional = false)
     @JoinColumn(name = "category_id",nullable = false)
     private Category category;
+
+    @ManyToOne(fetch = FetchType.LAZY,optional = false)
+    @JoinColumn(name = "seller_id",nullable = false)
+    private User user;
 }

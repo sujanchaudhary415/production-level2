@@ -13,12 +13,11 @@ import java.util.List;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-@ToString(exclude = "products")
-@EqualsAndHashCode(onlyExplicitlyIncluded = true, callSuper = false)
+
 public class Category extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @EqualsAndHashCode.Include
+
     private Long categoryId;
 
     @Column(nullable = false,unique = true, length = 100)
