@@ -13,6 +13,7 @@ import com.productionPractice.level2.mapper.ProductMapper;
 import com.productionPractice.level2.repository.CategoryRepository;
 import com.productionPractice.level2.repository.ProductRepository;
 import com.productionPractice.level2.service.ProductService;
+import com.productionPractice.level2.service.helper.CategoryHelper;
 import com.productionPractice.level2.service.helper.CommonHelper;
 import com.productionPractice.level2.service.helper.ProductHelper;
 import com.productionPractice.level2.util.PageableUtil;
@@ -42,6 +43,7 @@ public class ProductServiceImpl implements ProductService {
     private final ProductMapper productMapper;
     private final ProductHelper productHelper;
     private final CommonHelper commonHelper;
+    private final CategoryHelper categoryHelper;
 
     @Transactional
     @Override
@@ -49,7 +51,7 @@ public class ProductServiceImpl implements ProductService {
 
        String normalizedName= commonHelper.normalize(request.getProductName());
        productHelper.validateDuplicateName(normalizedName,null);
-       Category category=productHelper.getCategoryOrThrow(categoryId);
+       Category category=categoryHelper.getCategoryOrThrow(categoryId);
 
        Product product=productMapper.toEntity(request);
        product.setProductName(normalizedName);
