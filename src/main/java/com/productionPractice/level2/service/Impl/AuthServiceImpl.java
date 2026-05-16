@@ -48,7 +48,7 @@ public class AuthServiceImpl implements AuthService {
 
         UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
 
-        String token = jwtUtils.generateTokenFromUserName(user);
+        String token = jwtUtils.generateToken(user);
 
         List<String> roles = user.getAuthorities()
                 .stream()

@@ -1,9 +1,6 @@
 package com.productionPractice.level2.security.jwt;
 
-import io.jsonwebtoken.ExpiredJwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.MalformedJwtException;
-import io.jsonwebtoken.UnsupportedJwtException;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
@@ -17,78 +14,92 @@ import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Component
 public class JwtUtils {
+
     private static final Logger logger = LoggerFactory.getLogger(JwtUtils.class);
 
     @Value("${spring.app.jwtSecret}")
     private String jwtSecret;
 
-    @Value("${spring.app.jwtExpirationMs}") // 24 hours default
-    private int jwtExpirationMs;
+    @Value("${spring.app.jwtExpirationMs}")
+    private Long jwtExpirationMs;
 
     private SecretKey key;
 
     @PostConstruct
     public void init() {
-        if (jwtSecret.length() < 44) { // Minimum 256 bits for HS256
-            throw new IllegalArgumentException("JWT secret must be at least 44 characters (256 bits)");
-        }
+        validateSecret(jwtSecret);
         this.key = Keys.hmacShaKeyFor(Decoders.BASE64.decode(jwtSecret));
-        logger.info("JWT Key initialized successfully");
+        logger.info("JWT key initialized successfully");
     }
 
-    public String getJwtFromHeader(HttpServletRequest request) {
-        String bearerToken = request.getHeader("Authorization");
-        if (bearerToken != null && bearerToken.startsWith("Bearer ")) {
-            return bearerToken.substring(7).trim();
+    private void validateSecret(String secret) {
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalArgumentException("JWT secret cannot be empty");
         }
-        return null;
+        if (secret.length() < 44) {
+            throw new IllegalArgumentException("JWT secret must be at least 44 chars (256-bit)");
+        }
     }
 
-    public String generateTokenFromUserName(UserDetails userDetails) {
+    // ✅ Extract token from request
+    public String extractToken(HttpServletRequest request) {
+        String header = request.getHeader("Authorization");
+
+        if (header == null || !header.startsWith("Bearer ")) {
+            return null;
+        }
+
+        return header.substring(7).trim();
+    }
+
+    // ✅ Generate token (FIXED NAME)
+    public String generateToken(UserDetails userDetails) {
+
+        List<String> roles = userDetails.getAuthorities()
+                .stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toList());
+
         return Jwts.builder()
                 .subject(userDetails.getUsername())
-                .claim("roles", userDetails.getAuthorities().stream()
-                        .map(GrantedAuthority::getAuthority)
-                        .collect(Collectors.toList()))
+                .claim("roles", roles)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
-                .signWith(key)
+                .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    public String getUserNameFromToken(String token) {
+    // ✅ Extract username
+    public String extractUsername(String token) {
         try {
-            return Jwts.parser()
-                    .verifyWith(key)
-                    .build()
-                    .parseSignedClaims(token)
-                    .getPayload()
-                    .getSubject();
+            return parseClaims(token).getPayload().getSubject();
         } catch (Exception e) {
-            logger.error("Error extracting username from token: {}", e.getMessage());
+            logger.warn("Failed to extract username from token");
             return null;
         }
     }
 
-    public boolean validateJwtToken(String token) {
+    // ✅ Validate token
+    public boolean validateToken(String token) {
         try {
-            Jwts.parser().verifyWith(key).build().parseSignedClaims(token);
+            parseClaims(token);
             return true;
-        } catch (MalformedJwtException e) {
-            logger.error("Invalid JWT token: {}", e.getMessage());
-        } catch (ExpiredJwtException e) {
-            logger.error("JWT token is expired: {}", e.getMessage());
-        } catch (UnsupportedJwtException e) {
-            logger.error("JWT token is unsupported: {}", e.getMessage());
-        } catch (IllegalArgumentException e) {
-            logger.error("JWT claims string is empty: {}", e.getMessage());
         } catch (Exception e) {
-            logger.error("JWT token processing failed: {}", e.getMessage());
+            logger.warn("JWT validation failed: {}", e.getClass().getSimpleName());
+            return false;
         }
-        return false;
+    }
+
+    // 🔒 Central parser
+    private Jws<Claims> parseClaims(String token) {
+        return Jwts.parser()
+                .verifyWith(key)
+                .build()
+                .parseSignedClaims(token);
     }
 }

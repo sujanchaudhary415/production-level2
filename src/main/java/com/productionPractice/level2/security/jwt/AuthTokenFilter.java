@@ -20,6 +20,7 @@ import java.io.IOException;
 
 @Component
 public class AuthTokenFilter extends OncePerRequestFilter {
+
     private static final Logger logger = LoggerFactory.getLogger(AuthTokenFilter.class);
 
     @Autowired
@@ -29,53 +30,56 @@ public class AuthTokenFilter extends OncePerRequestFilter {
     private UserDetailsServiceImpl userDetailsService;
 
     @Override
-    protected void doFilterInternal(@NonNull HttpServletRequest request,
-                                    @NonNull HttpServletResponse response,
-                                    @NonNull FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(
+            @NonNull HttpServletRequest request,
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain
+    ) throws ServletException, IOException {
 
         try {
-            String requestURI = request.getRequestURI();
-            logger.debug("AuthTokenFilter processing URI: {}", requestURI);
+            String jwt = jwtUtils.extractToken(request);
 
-            String jwt = parseJwt(request);
-            if (jwt != null && jwtUtils.validateJwtToken(jwt)) {
-                String username = jwtUtils.getUserNameFromToken(jwt);
+            if (jwt != null && jwtUtils.validateToken(jwt)) {
 
-                if (username != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                    UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                String username = jwtUtils.extractUsername(jwt);
 
-                    if (userDetails != null) {
-                        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                                userDetails, null, userDetails.getAuthorities());
-                        authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                        SecurityContextHolder.getContext().setAuthentication(authentication);
-                        logger.debug("Authenticated user: {}, roles: {}", username, userDetails.getAuthorities());
-                    }
+                if (username != null &&
+                        SecurityContextHolder.getContext().getAuthentication() == null) {
+
+                    UserDetails userDetails =
+                            userDetailsService.loadUserByUsername(username);
+
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails,
+                                    null,
+                                    userDetails.getAuthorities()
+                            );
+
+                    authentication.setDetails(
+                            new WebAuthenticationDetailsSource().buildDetails(request)
+                    );
+
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                    logger.debug("Authenticated user: {}", username);
                 }
             }
+
         } catch (Exception e) {
-            logger.error("Cannot set user authentication: {}", e.getMessage());
-            // Don't clear SecurityContext - let other filters handle it
+            logger.error("Authentication filter failed", e);
         }
 
         filterChain.doFilter(request, response);
     }
 
-    private String parseJwt(HttpServletRequest request) {
-        String jwt = jwtUtils.getJwtFromHeader(request);
-        if (jwt != null) {
-            logger.trace("JWT token found in request");
-        }
-        return jwt;
-    }
-
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
-        // Skip auth filter for public endpoints
-        return path.startsWith("/api/auth/") ||
-                path.startsWith("/api/public/") ||
-                path.startsWith("/swagger") ||
-                path.startsWith("/v3/api-docs");
+
+        return path.startsWith("/api/auth/")
+                || path.startsWith("/api/public/")
+                || path.startsWith("/swagger")
+                || path.startsWith("/v3/api-docs");
     }
 }

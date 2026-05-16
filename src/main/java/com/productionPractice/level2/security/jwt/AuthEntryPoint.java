@@ -18,9 +18,7 @@ import java.time.Instant;
 @Component
 public class AuthEntryPoint implements AuthenticationEntryPoint {
 
-    private static final Logger logger =
-            LoggerFactory.getLogger(AuthEntryPoint.class);
-
+    private static final Logger logger = LoggerFactory.getLogger(AuthEntryPoint.class);
     private final ObjectMapper objectMapper;
 
     public AuthEntryPoint(ObjectMapper objectMapper) {
@@ -32,22 +30,25 @@ public class AuthEntryPoint implements AuthenticationEntryPoint {
                          HttpServletResponse response,
                          AuthenticationException authException) throws IOException {
 
-        logger.warn("Unauthorized access attempt: {} - {}",
+        logger.warn("Unauthorized access attempt to secure route: {} - Context: {}",
                 request.getRequestURI(),
                 authException.getMessage());
 
+        // Setup compliance parameters for down-stream network transport
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8"); // Explicit charset protection
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 
         ApiResponse<Void> errorResponse = ApiResponse.<Void>builder()
                 .success(false)
-                .message("Authentication required")
+                .message("Full authentication is required to access this resource.")
                 .errorCode("UNAUTHORIZED")
                 .status(HttpStatus.UNAUTHORIZED.value())
                 .path(request.getRequestURI())
                 .timestamp(Instant.now().toString())
                 .build();
 
+        // Directly pipe bytes to network buffer
         objectMapper.writeValue(response.getOutputStream(), errorResponse);
     }
 }
