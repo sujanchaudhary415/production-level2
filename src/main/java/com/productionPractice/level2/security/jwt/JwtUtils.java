@@ -1,16 +1,19 @@
 package com.productionPractice.level2.security.jwt;
 
+import com.productionPractice.level2.security.services.UserDetailsImpl;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.WebUtils;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
@@ -27,6 +30,9 @@ public class JwtUtils {
 
     @Value("${spring.app.jwtExpirationMs}")
     private Long jwtExpirationMs;
+
+    @Value("${spring.app.jwtCookie}")
+    private String jwtCookie;
 
     private SecretKey key;
 
@@ -46,20 +52,34 @@ public class JwtUtils {
         }
     }
 
-    // ✅ Extract token from request
-    public String extractToken(HttpServletRequest request) {
-        String header = request.getHeader("Authorization");
-
-        if (header == null || !header.startsWith("Bearer ")) {
-            return null;
+    // ✅ FIXED: Now properly returns the cookie value back to the filter
+    public String getJwtFromCookies(HttpServletRequest request) {
+        Cookie cookie = WebUtils.getCookie(request, jwtCookie);
+        if (cookie != null) {
+            return cookie.getValue();
         }
-
-        return header.substring(7).trim();
+        return null;
     }
 
-    // ✅ Generate token (FIXED NAME)
-    public String generateToken(UserDetails userDetails) {
+    // ✅ FIXED: Hardened security settings by enabling httpOnly(true)
+    public ResponseCookie generateJwtCookie(UserDetailsImpl userPrincipal) {
+        String jwt = generateToken(userPrincipal);
+        return ResponseCookie.from(jwtCookie, jwt)
+                .path("/api")
+                .maxAge(jwtExpirationMs / 1000) // Converts milliseconds to seconds for the cookie lifespan
+                .httpOnly(true)                 // Prevents cross-site scripting (XSS) token theft
+                .secure(false)                  // Toggle to true when deploying on an HTTPS environment
+                .sameSite("Lax")                // Balanced CSRF defense mechanism
+                .build();
+    }
 
+    public ResponseCookie cleanJwtCookie() {
+        return ResponseCookie.from(jwtCookie, null)
+                .path("/api")
+                .build();
+    }
+
+    public String generateToken(UserDetailsImpl userDetails) {
         List<String> roles = userDetails.getAuthorities()
                 .stream()
                 .map(GrantedAuthority::getAuthority)
@@ -74,7 +94,6 @@ public class JwtUtils {
                 .compact();
     }
 
-    // ✅ Extract username
     public String extractUsername(String token) {
         try {
             return parseClaims(token).getPayload().getSubject();
@@ -84,7 +103,6 @@ public class JwtUtils {
         }
     }
 
-    // ✅ Validate token
     public boolean validateToken(String token) {
         try {
             parseClaims(token);
@@ -95,7 +113,6 @@ public class JwtUtils {
         }
     }
 
-    // 🔒 Central parser
     private Jws<Claims> parseClaims(String token) {
         return Jwts.parser()
                 .verifyWith(key)

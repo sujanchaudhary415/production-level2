@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 @Validated
 @RestController
-@RequestMapping("/api/category")
+@RequestMapping("/api")
 
 public class CategoryController {
 
@@ -27,14 +27,14 @@ public class CategoryController {
         this.categoryService=categoryService;
     }
 
-    @PostMapping
+    @PostMapping("/admin/category")
     public ResponseEntity<ApiResponse<CategoryResponse>> createCategory(@RequestBody @Valid CategoryRequest request)
     {
         CategoryResponse response = categoryService.createCategory(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response,"Category added successfully"));
     }
 
-    @GetMapping
+    @GetMapping("/public/categories")
     public ResponseEntity<ApiResponse<PagedResponse<CategoryResponse>>> getAllCategories( @RequestParam(name="pageNumber",defaultValue = AppConstant.PAGE_NUMBER, required = false)Integer pageNumber,
                                                                                           @RequestParam(name="pageSize",defaultValue=AppConstant.PAGE_SIZE,required = false)Integer pageSize,
                                                                                           @RequestParam(name="sortBy",defaultValue = AppConstant.SORT_BY_CATEGORY,required = false)String sortBy,
@@ -44,21 +44,21 @@ public class CategoryController {
         return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(response,"Category Fetched successfully"));
     }
 
-    @GetMapping("/{categoryId}")
+    @GetMapping("/public/{categoryId}")
     public ResponseEntity<ApiResponse<CategoryResponse>> getCategoryById(@PathVariable @Positive Long categoryId)
     {
         CategoryResponse response=categoryService.getCategoryById(categoryId);
         return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(response,"Category fetched successfully"));
     }
 
-    @PutMapping("/{categoryId}")
+    @PutMapping("/admin/{categoryId}")
     public ResponseEntity<ApiResponse<CategoryResponse>> updateCategoryById(@PathVariable @Positive Long categoryId, @Valid @RequestBody CategoryUpdateRequest request)
     {
         CategoryResponse response=categoryService.updateCategoryById(categoryId,request);
         return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(response,"Category Updated successfully"));
     }
 
-    @DeleteMapping("/{categoryId}")
+    @DeleteMapping("/admin/{categoryId}")
     public ResponseEntity<ApiResponse<Void>> deleteCategoryById (@PathVariable @Positive Long categoryId)
     {
         categoryService.deleteCategoryById(categoryId);

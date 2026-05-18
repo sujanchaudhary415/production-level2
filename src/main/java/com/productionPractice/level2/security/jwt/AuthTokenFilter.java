@@ -37,7 +37,7 @@ public class AuthTokenFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
 
         try {
-            String jwt = jwtUtils.extractToken(request);
+            String jwt = jwtUtils.getJwtFromCookies(request);
 
             if (jwt != null && jwtUtils.validateToken(jwt)) {
 
@@ -77,8 +77,8 @@ public class AuthTokenFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI();
 
-        return path.startsWith("/api/auth/")
-                || path.startsWith("/api/public/")
+        return path.startsWith("/api/auth/signin")
+                || path.startsWith("/api/auth/signup")
                 || path.startsWith("/swagger")
                 || path.startsWith("/v3/api-docs");
     }

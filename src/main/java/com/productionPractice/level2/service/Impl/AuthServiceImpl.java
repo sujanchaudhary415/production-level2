@@ -9,9 +9,10 @@ import com.productionPractice.level2.security.request.SignUpRequest;
 import com.productionPractice.level2.security.response.AuthResponse;
 import com.productionPractice.level2.security.services.UserDetailsImpl;
 import com.productionPractice.level2.service.AuthService;
-import com.productionPractice.level2.service.helper.AuthHelper; // Injected
+import com.productionPractice.level2.service.helper.AuthHelper;
 import com.productionPractice.level2.service.helper.CommonHelper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -41,22 +42,19 @@ public class AuthServiceImpl implements AuthService {
         );
 
         UserDetailsImpl user = (UserDetailsImpl) authentication.getPrincipal();
-        String token = jwtUtils.generateToken(user);
+        ResponseCookie jwtCookie = jwtUtils.generateJwtCookie(user);
         List<String> roles = user.getAuthorities().stream().map(a -> a.getAuthority()).toList();
 
-        return new AuthResponse(token, "Bearer", user.getId(), user.getUsername(), user.getEmail(), roles);
+        return new AuthResponse(user.getId(), user.getUsername(), user.getEmail(), roles, jwtCookie);
     }
 
     @Override
     public String signup(SignUpRequest request) {
-        // 1. Normalize
+
         String username = commonHelper.normalize(request.getUserName());
         String email = commonHelper.normalizeEmail(request.getEmail());
-
-        // 2. Validate (Delegated to Helper)
         authHelper.validateDuplicateUser(username, email);
 
-        // 3. Resolve Database Roles (Delegated to Helper - Completely hides the switch-case!)
         Set<Role> roles = authHelper.mapRolesFromStrings(request.getRole());
 
         // 4. Map Entity & Save
@@ -68,5 +66,34 @@ public class AuthServiceImpl implements AuthService {
 
         userRepository.save(user);
         return "User registered successfully";
+    }
+
+    @Override
+    public String currentUserName(Authentication authentication) {
+        if(authentication!=null) {
+            return authentication.getName();}
+        else {
+            return "null";
+        }
+    }
+
+    @Override
+    public AuthResponse getUserDetails(Authentication authentication) {
+
+        UserDetailsImpl userDetails =
+                (UserDetailsImpl) authentication.getPrincipal();
+
+        List<String> roles = userDetails.getAuthorities()
+                .stream()
+                .map(authority -> authority.getAuthority())
+                .toList();
+
+        return new AuthResponse(
+                userDetails.getId(),
+                userDetails.getUsername(),
+                userDetails.getEmail(),
+                roles,
+                null
+        );
     }
 }
