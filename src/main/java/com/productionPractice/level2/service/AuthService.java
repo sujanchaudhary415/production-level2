@@ -1,12 +1,15 @@
 package com.productionPractice.level2.service;
 
+import com.productionPractice.level2.security.response.LoginResult;
 import com.productionPractice.level2.security.request.LoginRequest;
 import com.productionPractice.level2.security.request.SignUpRequest;
 import com.productionPractice.level2.security.response.AuthResponse;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.core.Authentication;
 
 public interface AuthService {
-    AuthResponse signin(LoginRequest request);
+    LoginResult signin(LoginRequest request);
+    ResponseCookie refreshAccessToken(String refreshTokenFromCookie);
     String signup(SignUpRequest request);
     String currentUserName(Authentication authentication);
     AuthResponse getUserDetails(Authentication authentication);

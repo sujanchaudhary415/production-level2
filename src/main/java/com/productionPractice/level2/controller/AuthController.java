@@ -1,11 +1,15 @@
 package com.productionPractice.level2.controller;
 
+import com.productionPractice.level2.security.response.LoginResult;
 import com.productionPractice.level2.security.jwt.JwtUtils;
 import com.productionPractice.level2.security.request.LoginRequest;
 import com.productionPractice.level2.security.request.SignUpRequest;
 import com.productionPractice.level2.security.response.AuthResponse;
+import com.productionPractice.level2.security.services.UserDetailsImpl;
 import com.productionPractice.level2.service.AuthService;
+import com.productionPractice.level2.service.Impl.RefreshTokenServiceImpl;
 import com.productionPractice.level2.wrapper.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -21,43 +25,63 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final RefreshTokenServiceImpl refreshTokenService;
     private final JwtUtils jwtUtils;
 
     @PostMapping("/auth/signin")
     public ResponseEntity<ApiResponse<AuthResponse>> signin(@Valid @RequestBody LoginRequest request) {
-        AuthResponse authResponse = authService.signin(request);
-        String cookieHeaderValue = authResponse.getJwtCookie().toString();
+        LoginResult result = authService.signin(request);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add(HttpHeaders.SET_COOKIE, result.getJwtCookie().toString());
+        headers.add(HttpHeaders.SET_COOKIE, result.getRefreshCookie().toString());
+
         return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, cookieHeaderValue)
-                .body(ApiResponse.success(authResponse, "Login successful"));
+                .headers(headers)
+                .body(ApiResponse.success(result.getAuthResponse(), "Login successful"));
+    }
+
+    @PostMapping("/auth/refresh")
+    public ResponseEntity<ApiResponse<String>> refreshCookie(HttpServletRequest request) {
+        String tokenFromCookie = jwtUtils.getJwtRefreshFromCookies(request);
+        ResponseCookie freshAccessCookie = authService.refreshAccessToken(tokenFromCookie);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, freshAccessCookie.toString())
+                .body(ApiResponse.success("Access token refreshed successfully"));
+    }
+
+    @PostMapping("/auth/signout")
+    public ResponseEntity<ApiResponse<String>> getSignedOut(Authentication authentication) {
+        if (authentication != null && authentication.getPrincipal() instanceof UserDetailsImpl userDetails) {
+            refreshTokenService.deleteByUserId(userDetails.getId());
+        }
+
+        ResponseCookie cleanJwt = jwtUtils.getCleanJwtCookie();
+        ResponseCookie cleanRefresh = jwtUtils.getCleanRefreshCookie();
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.SET_COOKIE, cleanJwt.toString())
+                .header(HttpHeaders.SET_COOKIE, cleanRefresh.toString())
+                .body(ApiResponse.success("Logout successful"));
     }
 
     @PostMapping("/auth/signup")
     public ResponseEntity<ApiResponse<String>> signup(@Valid @RequestBody SignUpRequest request) {
         String result = authService.signup(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(result,"User registered successfully"));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(result, "User registered successfully"));
     }
 
     @GetMapping("/auth/username")
-    public ResponseEntity<ApiResponse<String>> currentUserName(Authentication authentication){
-        String result=authService.currentUserName(authentication);
-        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(result,"User fetched successfully"));
+    public ResponseEntity<ApiResponse<String>> currentUserName(Authentication authentication) {
+        String result = authService.currentUserName(authentication);
+        return ResponseEntity.ok().body(ApiResponse.success(result, "User fetched successfully"));
     }
 
     @GetMapping("/auth/user")
-    public ResponseEntity<ApiResponse<AuthResponse>> getUserDetails(Authentication authentication)
-    {
-        AuthResponse result=authService.getUserDetails(authentication);
-        return ResponseEntity.status(HttpStatus.OK).body(ApiResponse.success(result,"User details fetched successfully"));
-    }
-
-    @PostMapping("/auth/signout")
-    public ResponseEntity<ApiResponse<ResponseCookie>> getSignedOut()
-    {
-        ResponseCookie cookie=jwtUtils.cleanJwtCookie();
-        return ResponseEntity.ok()
-                .header(HttpHeaders.SET_COOKIE, cookie.toString())
-                .body(ApiResponse.success( "Logout successful"));
-
+    public ResponseEntity<ApiResponse<AuthResponse>> getUserDetails(Authentication authentication) {
+        AuthResponse result = authService.getUserDetails(authentication);
+        return ResponseEntity.ok().body(ApiResponse.success(result, "User details fetched successfully"));
     }
 }

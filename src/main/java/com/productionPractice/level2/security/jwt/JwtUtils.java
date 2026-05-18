@@ -34,6 +34,12 @@ public class JwtUtils {
     @Value("${spring.app.jwtCookie}")
     private String jwtCookie;
 
+    @Value("${spring.app.jwtRefreshCookie}")
+    private String jwtRefreshCookie;
+
+    @Value("${spring.app.jwtRefreshExpirationMs}")
+    private Long jwtRefreshExpirationMs;
+
     private SecretKey key;
 
     @PostConstruct
@@ -55,15 +61,12 @@ public class JwtUtils {
     // ✅ FIXED: Now properly returns the cookie value back to the filter
     public String getJwtFromCookies(HttpServletRequest request) {
         Cookie cookie = WebUtils.getCookie(request, jwtCookie);
-        if (cookie != null) {
-            return cookie.getValue();
-        }
-        return null;
+        return cookie != null ? cookie.getValue() : null;
     }
 
     // ✅ FIXED: Hardened security settings by enabling httpOnly(true)
     public ResponseCookie generateJwtCookie(UserDetailsImpl userPrincipal) {
-        String jwt = generateToken(userPrincipal);
+        String jwt = generateAccessToken(userPrincipal);
         return ResponseCookie.from(jwtCookie, jwt)
                 .path("/api")
                 .maxAge(jwtExpirationMs / 1000) // Converts milliseconds to seconds for the cookie lifespan
@@ -76,10 +79,11 @@ public class JwtUtils {
     public ResponseCookie cleanJwtCookie() {
         return ResponseCookie.from(jwtCookie, null)
                 .path("/api")
+                .maxAge(0)
                 .build();
     }
 
-    public String generateToken(UserDetailsImpl userDetails) {
+    public String generateAccessToken(UserDetailsImpl userDetails) {
         List<String> roles = userDetails.getAuthorities()
                 .stream()
                 .map(GrantedAuthority::getAuthority)
@@ -118,5 +122,36 @@ public class JwtUtils {
                 .verifyWith(key)
                 .build()
                 .parseSignedClaims(token);
+    }
+
+
+
+    // 1. Get Refresh Token from Cookies
+    public String getJwtRefreshFromCookies(HttpServletRequest request) {
+        Cookie cookie = WebUtils.getCookie(request, jwtRefreshCookie);
+        if (cookie != null) {
+            return cookie.getValue();
+        }
+        return null;
+    }
+
+    // 2. Generate Secure Refresh Token Cookie (Scoped strictly to /api/auth/refresh)
+    public ResponseCookie generateRefreshCookie(String refreshToken) {
+        return ResponseCookie.from(jwtRefreshCookie, refreshToken)
+                .path("/api/auth/refresh") // CRITICAL: Browser only sends this cookie to the refresh endpoint
+                .maxAge(jwtRefreshExpirationMs / 1000)
+                .httpOnly(true)
+                .secure(false) // Set to true in your production HTTPS environment
+                .sameSite("Lax")
+                .build();
+    }
+
+    // 3. Clean Cookie Utilities for Logout Action
+    public ResponseCookie getCleanJwtCookie() {
+        return ResponseCookie.from(jwtCookie, null).path("/api").maxAge(0).build();
+    }
+
+    public ResponseCookie getCleanRefreshCookie() {
+        return ResponseCookie.from(jwtRefreshCookie, null).path("/api/auth/refresh").maxAge(0).build();
     }
 }
