@@ -30,16 +30,29 @@ public class RefreshTokenServiceImpl implements RefreshTokenService {
 
     @Transactional
     public RefreshToken createRefreshToken(Long userId) {
-        // Delete any existing refresh token for this user to prevent database bloat
+
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found with id: " + userId));
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        refreshTokenRepository.deleteByUser(user);
+        Optional<RefreshToken> existing =
+                refreshTokenRepository.findByUser(user);
 
-        RefreshToken refreshToken = new RefreshToken();
-        refreshToken.setUser(user);
-        refreshToken.setExpiryDate(Instant.now().plusMillis(refreshTokenDurationMs));
-        refreshToken.setToken(UUID.randomUUID().toString());
+        RefreshToken refreshToken;
+
+        if (existing.isPresent()) {
+            refreshToken = existing.get();
+            refreshToken.setToken(UUID.randomUUID().toString());
+            refreshToken.setExpiryDate(
+                    Instant.now().plusMillis(refreshTokenDurationMs)
+            );
+        } else {
+            refreshToken = new RefreshToken();
+            refreshToken.setUser(user);
+            refreshToken.setToken(UUID.randomUUID().toString());
+            refreshToken.setExpiryDate(
+                    Instant.now().plusMillis(refreshTokenDurationMs)
+            );
+        }
 
         return refreshTokenRepository.save(refreshToken);
     }
