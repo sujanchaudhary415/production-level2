@@ -10,7 +10,7 @@ import org.springframework.security.core.Authentication;
 public interface AuthService {
     LoginResult signin(LoginRequest request);
     ResponseCookie refreshAccessToken(String refreshTokenFromCookie);
-    String signup(SignUpRequest request);
+    AuthResponse signup(SignUpRequest request);
     String currentUserName(Authentication authentication);
     AuthResponse getUserDetails(Authentication authentication);
 }

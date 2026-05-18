@@ -43,6 +43,36 @@ public class AuthServiceImpl implements AuthService {
     private final AuthHelper authHelper;
 
     @Override
+    @Transactional
+    public AuthResponse signup(SignUpRequest request) {
+
+        String username = commonHelper.normalize(request.getUserName());
+        String email = commonHelper.normalizeEmail(request.getEmail());
+
+        authHelper.validateDuplicateUser(username, email);
+
+        Set<Role> roles = authHelper.mapRolesFromStrings(request.getRole());
+
+        User user = new User();
+        user.setUserName(username);
+        user.setEmail(email);
+        user.setPassword(encoder.encode(request.getPassword()));
+        user.setRoles(roles);
+
+        User savedUser = userRepository.save(user);
+
+        return new AuthResponse(
+                savedUser.getUserId(),
+                savedUser.getUserName(),
+                savedUser.getEmail(),
+                savedUser.getRoles()
+                        .stream()
+                        .map(role -> role.getRoleName().name())
+                        .toList()
+        );
+    }
+
+    @Override
     public LoginResult signin(LoginRequest loginRequest) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(loginRequest.getUsername(), loginRequest.getPassword())
@@ -96,24 +126,6 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new RuntimeException("Refresh token is missing from the database."));
     }
 
-    @Override
-    @Transactional
-    public String signup(SignUpRequest request) {
-        String username = commonHelper.normalize(request.getUserName());
-        String email = commonHelper.normalizeEmail(request.getEmail());
-        authHelper.validateDuplicateUser(username, email);
-
-        Set<Role> roles = authHelper.mapRolesFromStrings(request.getRole());
-
-        User user = new User();
-        user.setUserName(username);
-        user.setEmail(email);
-        user.setPassword(encoder.encode(request.getPassword()));
-        user.setRoles(roles);
-
-        userRepository.save(user);
-        return "User registered successfully";
-    }
 
     @Override
     @Transactional(readOnly = true)
