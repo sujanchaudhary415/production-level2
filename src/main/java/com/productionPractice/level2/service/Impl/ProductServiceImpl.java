@@ -5,6 +5,7 @@ import com.productionPractice.level2.dto.request.ProductUpdateRequest;
 import com.productionPractice.level2.dto.response.ProductResponse;
 import com.productionPractice.level2.entity.Category;
 import com.productionPractice.level2.entity.Product;
+import com.productionPractice.level2.entity.User;
 import com.productionPractice.level2.enums.ProductSortType;
 import com.productionPractice.level2.exception.BusinessRuleException;
 import com.productionPractice.level2.exception.DuplicateErrorException;
@@ -12,6 +13,8 @@ import com.productionPractice.level2.exception.ResourceNotFoundException;
 import com.productionPractice.level2.mapper.ProductMapper;
 import com.productionPractice.level2.repository.CategoryRepository;
 import com.productionPractice.level2.repository.ProductRepository;
+import com.productionPractice.level2.repository.UserRepository;
+import com.productionPractice.level2.security.services.UserDetailsImpl;
 import com.productionPractice.level2.service.ProductService;
 import com.productionPractice.level2.service.helper.CategoryHelper;
 import com.productionPractice.level2.service.helper.CommonHelper;
@@ -29,6 +32,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -44,25 +48,45 @@ public class ProductServiceImpl implements ProductService {
     private final ProductHelper productHelper;
     private final CommonHelper commonHelper;
     private final CategoryHelper categoryHelper;
+    private final UserRepository userRepository;
 
     @Transactional
     @Override
     public ProductResponse addProduct(Long categoryId, ProductRequest request) {
 
-       String normalizedName= commonHelper.normalize(request.getProductName());
-       productHelper.validateDuplicateName(normalizedName,null);
-       Category category=categoryHelper.getCategoryOrThrow(categoryId);
+        String normalizedName = commonHelper.normalize(request.getProductName());
+        productHelper.validateDuplicateName(normalizedName, null);
+        Category category = categoryHelper.getCategoryOrThrow(categoryId);
 
-       Product product=productMapper.toEntity(request);
-       product.setProductName(normalizedName);
-       product.setCategory(category);
+        // Get logged-in user (SELLER)
+        UserDetailsImpl userDetails =
+                (UserDetailsImpl) SecurityContextHolder.getContext()
+                        .getAuthentication()
+                        .getPrincipal();
 
-       // optional but recommended (bidirectional sync) // if you have List<Product> in Category
+        User seller = userRepository
+                .findById(userDetails.getId())
+                .orElseThrow(() -> new ResourceNotFoundException( "User","id", userDetails.getId()));
+
+        // 5. Map request → entity
+        Product product = productMapper.toEntity(request);
+
+        // 6. Set business fields
+        product.setProductName(normalizedName);
+        product.setCategory(category);
+        product.setUser(seller);   // 🔥 CRITICAL FIX
+
+        // 7. Maintain bidirectional relationship (optional but good practice)
         category.getProducts().add(product);
 
-        Product savedProduct=productRepository.save(product);
+        // 8. Save
+        Product savedProduct = productRepository.save(product);
+
+        // 9. Response
         return productMapper.toResponse(savedProduct);
     }
+
+
     @Override
     @Cacheable(
             cacheNames = "productsPage",
